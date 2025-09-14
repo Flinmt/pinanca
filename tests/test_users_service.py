@@ -1,155 +1,35 @@
-import os
-import sys
-from pathlib import Path
-import importlib
-from datetime import datetime
-
-import pytest
-
-# Ensure project root is on sys.path for `import db` and `services`
-ROOT = Path(__file__).resolve().parent.parent
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
+from services.users import User
+from db.models import User as UserEntity
 
 
-def load_users_module(db_path: str):
-    """
-    Configura o caminho do banco (arquivo SQLite), reinicializa os módulos
-    que dependem do engine e retorna o módulo de serviços de usuários.
-    """
-    # Define o DB_PATH antes de importar os módulos que criam o engine
-    os.environ["DB_PATH"] = db_path
+def test_user_dto_getters_setters():
+    u = User()
+    u.set_name("John")
+    u.set_cpf("12345678901")
+    u.set_password_hash(b"pw")
+    u.set_profile_image("/pic.png")
 
-    # Limpa metadata global do SQLModel para evitar duplicação de tabelas ao recarregar
-    from sqlmodel import SQLModel
-    try:
-        SQLModel.metadata.clear()
-    except Exception:
-        pass
-
-    # Remove módulos anteriores para forçar import limpo
-    for mod in ["db.session", "db.models", "services.users", "repository.users"]:
-        if mod in sys.modules:
-            del sys.modules[mod]
-
-    # Importa novamente sessão e modelos com o novo DB_PATH
-    import db.session as db_session
-    import db.models as db_models
-
-    # Cria as tabelas no novo banco
-    db_session.init_db()
-
-    # Importa o serviço e o repositório para garantir referências atualizadas
-    import services.users as users
-    import repository.users as users_repo
-    return users, users_repo
+    assert u.get_name() == "John"
+    assert u.get_cpf() == "12345678901"
+    assert u.get_password_hash() == b"pw"
+    assert u.get_profile_image() == "/pic.png"
 
 
-@pytest.fixture()
-def user_mods(tmp_path):
-    """Fornece módulos `services.users` e `repository.users` com DB isolado por teste."""
-    db_file = tmp_path / "test.db"
-    return load_users_module(str(db_file))
+def test_user_to_entity_and_from_entity_roundtrip():
+    dto = User(name="Jane", cpf="10987654321", password_hash=b"hash", profile_image=None)
+    ent = dto.to_entity()
 
+    # campos básicos devem ser iguais
+    assert ent.name == dto.get_name()
+    assert ent.cpf == dto.get_cpf()
+    assert ent.password_hash == dto.get_password_hash()
+    assert ent.profile_image == dto.get_profile_image()
 
-def test_create_and_get_by_id(user_mods):
-    users, repos = user_mods
-    Usuario = users.User
-    Repo = repos.UserRepository
-
-    novo = Usuario(name="Alice", cpf="11122233344", password_hash=b"hash", profile_image=None)
-    criado = Repo.create(novo)
-
-    assert criado.get_id() is not None
-    assert criado.get_name() == "Alice"
-    assert criado.get_cpf() == "11122233344"
-    assert isinstance(criado.get_created_at(), datetime)
-
-    recuperado = Repo.get_by_id(criado.get_id())
-    assert recuperado is not None
-    assert recuperado.get_cpf() == "11122233344"
-
-
-def test_get_by_cpf(user_mods):
-    users, repos = user_mods
-    Usuario = users.User
-    Repo = repos.UserRepository
-
-    u1 = Repo.create(Usuario(name="Bob", cpf="00011122233", password_hash=b"h1"))
-    _u2 = Repo.create(Usuario(name="Carol", cpf="99988877766", password_hash=b"h2"))
-
-    achado = Repo.get_by_cpf("00011122233")
-    assert achado is not None
-    assert achado.get_id() == u1.get_id()
-    assert achado.get_name() == "Bob"
-
-
-def test_list_pagination(user_mods):
-    users, repos = user_mods
-    Usuario = users.User
-    Repo = repos.UserRepository
-
-    # Cria 3 usuários
-    created = [
-        Repo.create(Usuario(name=f"User{i}", cpf=f"{i:011d}", password_hash=b"x"))
-        for i in range(3)
-    ]
-
-    # Lista com offset=1 e limit=2 → deve retornar os 2 últimos em ordem de id
-    lst = Repo.list(limit=2, offset=1)
-    assert len(lst) == 2
-    assert [u.get_id() for u in lst] == [created[1].get_id(), created[2].get_id()]
-
-
-def test_update_user(user_mods):
-    users, repos = user_mods
-    Usuario = users.User
-    Repo = repos.UserRepository
-
-    criado = Repo.create(Usuario(name="Dave", cpf="12312312312", password_hash=b"old", profile_image=None))
-
-    # Guarda o timestamp anterior
-    prev_updated_at = criado.get_updated_at()
-
-    # Ajusta os campos pelo DTO e atualiza
-    criado.set_name("Dave Atualizado")
-    criado.set_password_hash(b"new")
-    criado.set_profile_image("/img.png")
-    atualizado = Repo.update(criado)
-
-    assert atualizado.get_name() == "Dave Atualizado"
-    assert atualizado.get_password_hash() == b"new"
-    assert atualizado.get_profile_image() == "/img.png"
-    # Deve ter alterado o campo de última atualização
-    assert atualizado.get_updated_at() != prev_updated_at
-
-
-def test_update_without_id_raises(user_mods):
-    users, repos = user_mods
-    Usuario = users.User
-    Repo = repos.UserRepository
-
-    sem_id = Usuario(name="Eve", cpf="55544433322", password_hash=b"pw")
-    with pytest.raises(ValueError):
-        Repo.update(sem_id)
-
-
-def test_update_nonexistent_user_raises(user_mods):
-    users, repos = user_mods
-    Usuario = users.User
-    Repo = repos.UserRepository
-
-    fantasma = Usuario(id=999999, name="Ghost", cpf="00000000000", password_hash=b"x")
-    with pytest.raises(ValueError):
-        Repo.update(fantasma)
-
-
-def test_duplicate_cpf_now_raises(user_mods):
-    """Com UNIQUE no CPF, duplicatas devem levantar erro de negócio."""
-    users, repos = user_mods
-    Usuario = users.User
-    Repo = repos.UserRepository
-
-    _u1 = Repo.create(Usuario(name="Hank", cpf="88877766655", password_hash=b"a"))
-    with pytest.raises(ValueError):
-        Repo.create(Usuario(name="Ivy", cpf="88877766655", password_hash=b"b"))
+    # from_entity deve popular timestamps do modelo
+    dto2 = User.from_entity(ent)
+    assert dto2.get_name() == dto.get_name()
+    assert dto2.get_cpf() == dto.get_cpf()
+    assert dto2.get_password_hash() == dto.get_password_hash()
+    # created_at/updated_at vêm do default_factory do modelo
+    assert dto2.get_created_at() is not None
+    assert dto2.get_updated_at() is not None

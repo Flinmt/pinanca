@@ -77,18 +77,15 @@ class UserRepository:
 
             new_name = (model.get_name() or "").strip()
             new_cpf = (model.get_cpf() or "").strip()
-            new_password = model.get_password_hash()
 
             if not new_name:
                 raise ValueError("Nome é obrigatório")
             if not new_cpf.isdigit() or len(new_cpf) != 11:
                 raise ValueError("CPF deve conter 11 dígitos numéricos")
-            if not isinstance(new_password, (bytes, bytearray)) or len(new_password) == 0:
-                raise ValueError("Senha hash inválida")
 
             ent.name = new_name
             ent.cpf = new_cpf
-            ent.password_hash = bytes(new_password)
+            # Password updates are not allowed via this method; keep existing hash
             ent.profile_image = model.get_profile_image()
             ent.updated_at = datetime.now(timezone.utc)
 
@@ -101,4 +98,3 @@ class UserRepository:
 
             s.refresh(ent)
             return UserDTO.from_entity(ent)
-
