@@ -1,64 +1,71 @@
 from sqlmodel import SQLModel, Field
 from typing import Optional
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 
-class Usuario(SQLModel, table=True):
-    id: Optional[int] = Field(default=None, primary_key=True)
-    nome: str
-    cpf: str
-    senha_hash: bytes
-    imagem_perfil: Optional[str] = None
-    data_registro: datetime = Field(default_factory=datetime.utcnow)
-    data_ultima_atualizacao: datetime = Field(default_factory=datetime.utcnow)
 
-class Categoria(SQLModel, table=True):
+class User(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
-    id_user: int = Field(foreign_key="usuario.id")
-    nome: str
+    name: str
+    cpf: str = Field(index=True, unique=True)
+    password_hash: bytes
+    profile_image: Optional[str] = None
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
-class Responsavel(SQLModel, table=True):
-    id: Optional[int] = Field(default=None, primary_key=True)
-    id_user: int = Field(foreign_key="usuario.id")
-    nome: Optional[str] = None
-    usuario_id: Optional[int] = Field(default=None, foreign_key="usuario.id")
 
-class OrigemDivida(SQLModel, table=True):
+class Category(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
-    id_user: int = Field(foreign_key="usuario.id")
-    nome: str
+    user_id: int = Field(foreign_key="user.id")
+    name: str
 
-class Divida(SQLModel, table=True):
-    id: Optional[int] = Field(default=None, primary_key=True)
-    user_id: int = Field(foreign_key="usuario.id")
-    id_origem: int = Field(foreign_key="origemdivida.id")
-    id_categoria: Optional[int] = Field(default=None, foreign_key="categoria.id")
-    id_responsavel: Optional[int] = Field(default=None, foreign_key="responsavel.id")
-    data_divida: date
-    descricao: Optional[str] = None
-    valor_total: float
-    parcelas: int
-    obs: Optional[str] = None
-    pago: bool = False
 
-class DividaParcela(SQLModel, table=True):
+class Responsible(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
-    divida_id: int = Field(foreign_key="divida.id")
-    numero: int
-    valor: float
-    vence_em: date
-    pago: bool = False
-    pago_em: Optional[datetime] = None
+    user_id: int = Field(foreign_key="user.id")
+    name: Optional[str] = None
+    related_user_id: Optional[int] = Field(default=None, foreign_key="user.id")
 
-class EntradaSaida(SQLModel, table=True):
+
+class DebtOrigin(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
-    user_id: int = Field(foreign_key="usuario.id")
-    id_categoria: Optional[int] = Field(default=None, foreign_key="categoria.id")
-    valor: float
-    tipo: str   # 'entrada' ou 'saida'
-    fixa: bool = False
-    periodicidade: str = "nenhuma"  # 'nenhuma','mensal','semanal','anual'
-    proxima_execucao: Optional[date] = None
-    descricao: Optional[str] = None
-    observacao: Optional[str] = None
-    ocorrido_em: datetime = Field(default_factory=datetime.utcnow)
-    id_parcela: Optional[int] = Field(default=None, foreign_key="dividaparcela.id")
+    user_id: int = Field(foreign_key="user.id")
+    name: str
+
+
+class Debt(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    user_id: int = Field(foreign_key="user.id")
+    origin_id: int = Field(foreign_key="debtorigin.id")
+    category_id: Optional[int] = Field(default=None, foreign_key="category.id")
+    responsible_id: Optional[int] = Field(default=None, foreign_key="responsible.id")
+    debt_date: date
+    description: Optional[str] = None
+    total_amount: float
+    installments: int
+    notes: Optional[str] = None
+    paid: bool = False
+
+
+class DebtInstallment(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    debt_id: int = Field(foreign_key="debt.id")
+    number: int
+    amount: float
+    due_on: date
+    paid: bool = False
+    paid_at: Optional[datetime] = None
+
+
+class Transaction(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    user_id: int = Field(foreign_key="user.id")
+    category_id: Optional[int] = Field(default=None, foreign_key="category.id")
+    amount: float
+    type: str   # 'income' or 'expense'
+    fixed: bool = False
+    periodicity: str = "none"  # 'none','monthly','weekly','yearly'
+    next_execution: Optional[date] = None
+    description: Optional[str] = None
+    notes: Optional[str] = None
+    occurred_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    installment_id: Optional[int] = Field(default=None, foreign_key="debtinstallment.id")
