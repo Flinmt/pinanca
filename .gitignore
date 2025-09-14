@@ -1,6 +1,6 @@
 # venv
 .venv/
-env/
+.env
 
 # banco de dados local
 data/*.db
