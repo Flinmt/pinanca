@@ -131,3 +131,21 @@ def test_create_with_empty_name_raises(mods):
     )
     with pytest.raises(ValueError):
         categories_repo.CategoryRepository.create(categories.Category(user_id=u.get_id(), name="  "))
+
+
+def test_delete_category(mods):
+    users, categories, users_repo, categories_repo = mods
+    u = users_repo.UserRepository.create(
+        users.User(name="Owner7", cpf="10101010101", password_hash=b"pw")
+    )
+
+    c1 = categories_repo.CategoryRepository.create(categories.Category(user_id=u.get_id(), name="Del1"))
+    c2 = categories_repo.CategoryRepository.create(categories.Category(user_id=u.get_id(), name="Del2"))
+
+    # Apaga a primeira categoria
+    categories_repo.CategoryRepository.delete(c1.get_id())
+
+    assert categories_repo.CategoryRepository.get_by_id(c1.get_id()) is None
+    lst = categories_repo.CategoryRepository.list_by_user(u.get_id())
+    assert len(lst) == 1
+    assert lst[0].get_id() == c2.get_id()

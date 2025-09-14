@@ -89,3 +89,21 @@ class CategoryRepository:
             s.refresh(ent)
             return CategoryDTO.from_entity(ent)
 
+    @staticmethod
+    def delete(category_id: int) -> None:
+        """Remove uma categoria por ID. Lança erro se não existir ou se estiver em uso."""
+        if category_id is None or int(category_id) <= 0:
+            raise ValueError("ID inválido")
+
+        with Session(engine) as s:
+            ent = s.get(CategoryEntity, int(category_id))
+            if not ent:
+                raise ValueError("Categoria não encontrada")
+
+            try:
+                s.delete(ent)
+                s.commit()
+            except IntegrityError as e:
+                s.rollback()
+                # FK em uso (ex.: transactions, debts) impede remoção
+                raise ValueError("Categoria não pode ser removida pois está em uso") from e
