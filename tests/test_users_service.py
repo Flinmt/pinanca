@@ -28,7 +28,7 @@ def load_users_module(db_path: str):
         pass
 
     # Remove módulos anteriores para forçar import limpo
-    for mod in ["db.session", "db.models", "services.users"]:
+    for mod in ["db.session", "db.models", "services.users", "repository.users"]:
         if mod in sys.modules:
             del sys.modules[mod]
 
@@ -39,21 +39,23 @@ def load_users_module(db_path: str):
     # Cria as tabelas no novo banco
     db_session.init_db()
 
-    # Importa o serviço para garantir referências atualizadas
+    # Importa o serviço e o repositório para garantir referências atualizadas
     import services.users as users
-    return users
+    import repository.users as users_repo
+    return users, users_repo
 
 
 @pytest.fixture()
-def users(tmp_path):
-    """Fornece o módulo `services.users` isolado usando um DB SQLite por teste."""
+def user_mods(tmp_path):
+    """Fornece módulos `services.users` e `repository.users` com DB isolado por teste."""
     db_file = tmp_path / "test.db"
     return load_users_module(str(db_file))
 
 
-def test_create_and_get_by_id(users):
+def test_create_and_get_by_id(user_mods):
+    users, repos = user_mods
     Usuario = users.User
-    Repo = users.UserRepository
+    Repo = repos.UserRepository
 
     novo = Usuario(name="Alice", cpf="11122233344", password_hash=b"hash", profile_image=None)
     criado = Repo.create(novo)
@@ -68,9 +70,10 @@ def test_create_and_get_by_id(users):
     assert recuperado.get_cpf() == "11122233344"
 
 
-def test_get_by_cpf(users):
+def test_get_by_cpf(user_mods):
+    users, repos = user_mods
     Usuario = users.User
-    Repo = users.UserRepository
+    Repo = repos.UserRepository
 
     u1 = Repo.create(Usuario(name="Bob", cpf="00011122233", password_hash=b"h1"))
     _u2 = Repo.create(Usuario(name="Carol", cpf="99988877766", password_hash=b"h2"))
@@ -81,9 +84,10 @@ def test_get_by_cpf(users):
     assert achado.get_name() == "Bob"
 
 
-def test_list_pagination(users):
+def test_list_pagination(user_mods):
+    users, repos = user_mods
     Usuario = users.User
-    Repo = users.UserRepository
+    Repo = repos.UserRepository
 
     # Cria 3 usuários
     created = [
@@ -97,9 +101,10 @@ def test_list_pagination(users):
     assert [u.get_id() for u in lst] == [created[1].get_id(), created[2].get_id()]
 
 
-def test_update_user(users):
+def test_update_user(user_mods):
+    users, repos = user_mods
     Usuario = users.User
-    Repo = users.UserRepository
+    Repo = repos.UserRepository
 
     criado = Repo.create(Usuario(name="Dave", cpf="12312312312", password_hash=b"old", profile_image=None))
 
@@ -119,28 +124,31 @@ def test_update_user(users):
     assert atualizado.get_updated_at() != prev_updated_at
 
 
-def test_update_without_id_raises(users):
+def test_update_without_id_raises(user_mods):
+    users, repos = user_mods
     Usuario = users.User
-    Repo = users.UserRepository
+    Repo = repos.UserRepository
 
     sem_id = Usuario(name="Eve", cpf="55544433322", password_hash=b"pw")
     with pytest.raises(ValueError):
         Repo.update(sem_id)
 
 
-def test_update_nonexistent_user_raises(users):
+def test_update_nonexistent_user_raises(user_mods):
+    users, repos = user_mods
     Usuario = users.User
-    Repo = users.UserRepository
+    Repo = repos.UserRepository
 
     fantasma = Usuario(id=999999, name="Ghost", cpf="00000000000", password_hash=b"x")
     with pytest.raises(ValueError):
         Repo.update(fantasma)
 
 
-def test_duplicate_cpf_now_raises(users):
+def test_duplicate_cpf_now_raises(user_mods):
     """Com UNIQUE no CPF, duplicatas devem levantar erro de negócio."""
+    users, repos = user_mods
     Usuario = users.User
-    Repo = users.UserRepository
+    Repo = repos.UserRepository
 
     _u1 = Repo.create(Usuario(name="Hank", cpf="88877766655", password_hash=b"a"))
     with pytest.raises(ValueError):
