@@ -15,7 +15,8 @@ def _ensure_dir(path: str) -> None:
 
 
 def _session_path() -> str:
-    return config.SESSION_FILE
+    # Read from env if present to align with runtime-configurable tests
+    return os.getenv("SESSION_FILE", config.SESSION_FILE)
 
 
 def save_token(token: str) -> None:
@@ -77,4 +78,3 @@ def current_user() -> Optional["services.users.User"]:
         clear_token()
         return None
     return UserRepository.get_by_id(uid)
-

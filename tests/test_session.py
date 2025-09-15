@@ -36,6 +36,7 @@ def load_modules():
             del sys.modules[mod]
 
     import db.session as db_session
+    import db.models as db_models
     db_session.init_db()
 
     import services.users as users
@@ -90,4 +91,3 @@ def test_current_user_clears_expired(mods, tmp_path):
     # current_user should clear invalid token and return None
     assert session.current_user() is None
     assert not Path(os.environ["SESSION_FILE"]).exists()
-
