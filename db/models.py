@@ -4,6 +4,7 @@ from datetime import date, datetime, timezone
 
 
 class User(SQLModel, table=True):
+    __table_args__ = {"extend_existing": True}
     id: Optional[int] = Field(default=None, primary_key=True)
     name: str
     cpf: str = Field(index=True, unique=True)
@@ -14,12 +15,14 @@ class User(SQLModel, table=True):
 
 
 class Category(SQLModel, table=True):
+    __table_args__ = {"extend_existing": True}
     id: Optional[int] = Field(default=None, primary_key=True)
     user_id: int = Field(foreign_key="user.id")
     name: str
 
 
 class Responsible(SQLModel, table=True):
+    __table_args__ = {"extend_existing": True}
     id: Optional[int] = Field(default=None, primary_key=True)
     user_id: int = Field(foreign_key="user.id")
     name: Optional[str] = None
@@ -27,12 +30,14 @@ class Responsible(SQLModel, table=True):
 
 
 class DebtOrigin(SQLModel, table=True):
+    __table_args__ = {"extend_existing": True}
     id: Optional[int] = Field(default=None, primary_key=True)
     user_id: int = Field(foreign_key="user.id")
     name: str
 
 
 class Debt(SQLModel, table=True):
+    __table_args__ = {"extend_existing": True}
     id: Optional[int] = Field(default=None, primary_key=True)
     user_id: int = Field(foreign_key="user.id")
     origin_id: int = Field(foreign_key="debtorigin.id")
@@ -47,6 +52,7 @@ class Debt(SQLModel, table=True):
 
 
 class DebtInstallment(SQLModel, table=True):
+    __table_args__ = {"extend_existing": True}
     id: Optional[int] = Field(default=None, primary_key=True)
     debt_id: int = Field(foreign_key="debt.id")
     number: int
@@ -57,6 +63,7 @@ class DebtInstallment(SQLModel, table=True):
 
 
 class Transaction(SQLModel, table=True):
+    __table_args__ = {"extend_existing": True}
     id: Optional[int] = Field(default=None, primary_key=True)
     user_id: int = Field(foreign_key="user.id")
     category_id: Optional[int] = Field(default=None, foreign_key="category.id")
