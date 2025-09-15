@@ -41,27 +41,27 @@ def render_sidebar(user) -> None:
     )
 
     # Buttons for each page
-    if st.sidebar.button("Dashboard", use_container_width=True):
+    if st.sidebar.button("Dashboard", width='stretch'):
         if hasattr(st, "switch_page"):
             st.switch_page("pages/dashboard.py")
         else:
             st.session_state["menu"] = "Dashboard"; _do_rerun(); return
-    if st.sidebar.button("Transações", use_container_width=True):
+    if st.sidebar.button("Transações", width='stretch'):
         if hasattr(st, "switch_page"):
             st.switch_page("pages/transacoes.py")
         else:
             st.session_state["menu"] = "Transações"; _do_rerun(); return
-    if st.sidebar.button("Débitos", use_container_width=True):
+    if st.sidebar.button("Débitos", width='stretch'):
         if hasattr(st, "switch_page"):
             st.switch_page("pages/debitos.py")
         else:
             st.session_state["menu"] = "Débitos"; _do_rerun(); return
-    if st.sidebar.button("Configurações", use_container_width=True):
+    if st.sidebar.button("Configurações", width='stretch'):
         if hasattr(st, "switch_page"):
             st.switch_page("pages/configuracoes.py")
         else:
             st.session_state["menu"] = "Configurações"; _do_rerun(); return
-    if st.sidebar.button("Logout", type="primary", use_container_width=True):
+    if st.sidebar.button("Logout", type="primary", width='stretch'):
         st.session_state["show_logout_confirm"] = True
 
     # Logout confirmation popup (uses st.dialog when available)
@@ -73,11 +73,11 @@ def render_sidebar(user) -> None:
                 st.write("Deseja sair da sessão?")
                 spacer_left, c1, c2, spacer_right = st.columns([1, 3, 3, 1])
                 with c1:
-                    if st.button("Cancelar", use_container_width=True):
+                    if st.button("Cancelar", width='stretch'):
                         st.session_state["show_logout_confirm"] = False
                         _do_rerun()
                 with c2:
-                    if st.button("Sair", type="primary", use_container_width=True):
+                    if st.button("Sair", type="primary", width='stretch'):
                         logout()
                         st.session_state["show_logout_confirm"] = False
                         if hasattr(st, "switch_page"):
@@ -92,11 +92,11 @@ def render_sidebar(user) -> None:
             st.warning("Deseja sair da sessão?")
             spacer_left, c1, c2, spacer_right = st.columns([1, 3, 3, 1])
             with c1:
-                if st.button("Cancelar", use_container_width=True):
+                if st.button("Cancelar", width='stretch'):
                     st.session_state["show_logout_confirm"] = False
                     _do_rerun()
             with c2:
-                if st.button("Sair", type="primary", use_container_width=True):
+                if st.button("Sair", type="primary", width='stretch'):
                     logout()
                     st.session_state["show_logout_confirm"] = False
                     if hasattr(st, "switch_page"):

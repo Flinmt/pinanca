@@ -2,12 +2,9 @@ from __future__ import annotations
 import streamlit as st
 from core.session import login_and_persist
 
-
 def _do_rerun():
     fn = getattr(st, "rerun", None) or getattr(st, "experimental_rerun", None)
-    if fn:
-        fn()
-
+    if fn: fn()
 
 def render():
     st.title("Entrar")
@@ -19,12 +16,9 @@ def render():
         st.session_state["cpf_digits"] = ""
 
     def _format_cpf_mask(d: str) -> str:
-        if len(d) <= 3:
-            return d
-        if len(d) <= 6:
-            return f"{d[:3]}.{d[3:]}"
-        if len(d) <= 9:
-            return f"{d[:3]}.{d[3:6]}.{d[6:]}"
+        if len(d) <= 3: return d
+        if len(d) <= 6: return f"{d[:3]}.{d[3:]}"
+        if len(d) <= 9: return f"{d[:3]}.{d[3:6]}.{d[6:]}"
         return f"{d[:3]}.{d[3:6]}.{d[6:9]}-{d[9:11]}"
 
     def _handle_cpf_change():
@@ -43,10 +37,11 @@ def render():
     )
 
     password = st.text_input("Senha", type="password")
-    st.markdown("<div style='height: 45px;'></div>", unsafe_allow_html=True)
+
+    st.markdown("<hr/>", unsafe_allow_html=True)
     c1, c2, c3 = st.columns([1, 2, 1])
     with c2:
-        submitted = st.button("Entrar", use_container_width=True)
+        submitted = st.button("Entrar", width='stretch')
 
     if submitted:
         try:
@@ -60,5 +55,4 @@ def render():
         except Exception as e:
             st.error(str(e))
 
-# Auto-render when executed as a Streamlit page
 render()
