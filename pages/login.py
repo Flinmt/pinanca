@@ -36,18 +36,18 @@ def render():
             st.session_state["cpf_input"] = masked
 
     with st.form("login_form", clear_on_submit=False, border=True):
-        st.text_input(
+        raw_cpf = st.text_input(
             "CPF",
-            key="cpf_input",
+            value=st.session_state.get("cpf_input", ""),
             help="Apenas dígitos (máx. 11)",
-            on_change=_handle_cpf_change,
         )
+        digits = "".join(ch for ch in raw_cpf if ch.isdigit())[:11]
+        st.session_state["cpf_digits"] = digits
+        st.session_state["cpf_input"] = _format_cpf_mask(digits)
 
         password = st.text_input("Senha", type="password")
 
         submitted = st.form_submit_button("Entrar", type="primary")
-
-    submitted = submitted or False
 
     if submitted:
         try:
