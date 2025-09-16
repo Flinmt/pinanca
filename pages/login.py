@@ -15,8 +15,7 @@ def render():
     st.markdown(
         """
         <div style="display:flex;flex-direction:column;align-items:center;">
-          <h1>Entrar</h1>
-          <p>Informe suas credenciais para acessar.</p>
+          <h1>ENTRAR</h1>
         </div>
         """,
         unsafe_allow_html=True,
@@ -25,7 +24,7 @@ def render():
     st.session_state.setdefault("cpf_digits", "")
     st.session_state.setdefault("login_password", "")
 
-    outer_left, outer_center, outer_right = st.columns([1, 3, 1])
+    outer_left, outer_center, outer_right = st.columns([1, 15, 1])
     with outer_center:
         with st.container(border=True):
             raw_cpf = st.text_input(
