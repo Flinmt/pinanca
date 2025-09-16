@@ -25,10 +25,9 @@ def render():
     st.session_state.setdefault("cpf_digits", "")
     st.session_state.setdefault("login_password", "")
 
-    left, center, right = st.columns([1, 2, 1])
-    with center:
-        form = st.form("login_form", clear_on_submit=False, border=True)
-        with form:
+    outer_left, outer_center, outer_right = st.columns([1, 3, 1])
+    with outer_center:
+        with st.container(border=True):
             raw_cpf = st.text_input(
                 "CPF",
                 help="Informe até 11 dígitos",
@@ -39,8 +38,7 @@ def render():
 
             st.text_input("Senha", type="password", key="login_password")
 
-    with center:
-        submitted = form.form_submit_button(
+        submitted = st.button(
             "Entrar", type="primary", use_container_width=True
         )
 
