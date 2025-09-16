@@ -184,7 +184,7 @@ def render(user=None):
         st.session_state["debt_form_category"] = None
         st.session_state["debt_form_responsible"] = None
         st.session_state["debt_form_description"] = ""
-        st.session_state["debt_form_total"] = 0.01
+        st.session_state["debt_form_total"] = 0.00
         st.session_state["debt_form_installments"] = 1
         st.session_state["debt_form_paid"] = False
         st.session_state["debt_form_notes"] = ""
@@ -194,7 +194,7 @@ def render(user=None):
     st.session_state.setdefault("debt_form_category", None)
     st.session_state.setdefault("debt_form_responsible", None)
     st.session_state.setdefault("debt_form_description", "")
-    st.session_state.setdefault("debt_form_total", 0.01)
+    st.session_state.setdefault("debt_form_total", 0.00)
     st.session_state.setdefault("debt_form_installments", 1)
     st.session_state.setdefault("debt_form_paid", False)
     st.session_state.setdefault("debt_form_notes", "")
@@ -241,7 +241,7 @@ def render(user=None):
             )
             total_amount = st.number_input(
                 "Valor total (R$)",
-                min_value=0.01,
+                min_value=0.00,
                 step=0.01,
                 format="%.2f",
                 key="debt_form_total",
@@ -417,7 +417,7 @@ def render(user=None):
             ),
             "descricao": st.column_config.TextColumn("Descrição", required=False),
             "data": st.column_config.DateColumn("Data"),
-            "valor_total": st.column_config.NumberColumn("Valor total", min_value=0.01, format="R$ %.2f"),
+            "valor_total": st.column_config.NumberColumn("Valor total", min_value=0.00, format="R$ %.2f"),
             "parcelas": st.column_config.NumberColumn("Parcelas", min_value=1, step=1),
             "ultima_parcela": st.column_config.DateColumn(
                 "Última parcela",
@@ -531,11 +531,30 @@ def render(user=None):
 
     st.divider()
     st.subheader("Parcelas do débito")
-    debt_choices = [
-        (d.get_id(), d.get_description() or f"Dívida #{d.get_id()}")
-        for d in debts
-        if int(d.get_installments() or 1) > 1
+    resp_filter_options = [(-1, "Todos"), (None, "Usuário (sem responsável)")] + [
+        (resp.get_id(), resp.get_name() or f"Responsável {resp.get_id()}") for resp in responsibles
     ]
+    selected_resp_filter = st.selectbox(
+        "Filtrar por responsável",
+        options=resp_filter_options,
+        format_func=lambda opt: opt[1],
+        key="installments_resp_filter",
+    )[0]
+
+    debt_choices = []
+    for d in debts:
+        if int(d.get_installments() or 1) <= 1:
+            continue
+        resp_id = d.get_responsible_id()
+        include = True
+        if selected_resp_filter != -1:
+            if selected_resp_filter is None:
+                include = resp_id is None
+            else:
+                include = resp_id == selected_resp_filter
+        if include:
+            debt_choices.append((d.get_id(), d.get_description() or f"Dívida #{d.get_id()}"))
+
     if debt_choices:
         selected_debt_view = st.selectbox(
             "Escolha um débito para visualizar as parcelas",
@@ -612,7 +631,7 @@ def render(user=None):
         else:
             st.info("Nenhuma parcela encontrada para este débito.")
     else:
-        st.info("Somente dívidas parceladas aparecem aqui.")
+        st.info("Somente dívidas parceladas aparecem aqui (após aplicar o filtro).")
 
     confirm_key = "confirm_delete_debts_ids"
     if st.session_state.get(confirm_key):
