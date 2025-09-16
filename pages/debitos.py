@@ -1,5 +1,6 @@
 from __future__ import annotations
-from datetime import date
+from datetime import date, datetime, time, timezone
+import calendar
 import pandas as pd
 import streamlit as st
 
@@ -11,6 +12,8 @@ from repository.debts import DebtRepository
 from repository.debt_origins import DebtOriginRepository
 from repository.categories import CategoryRepository
 from repository.responsibles import ResponsibleRepository
+from services.debt_installments import DebtInstallment
+from repository.debt_installments import DebtInstallmentRepository
 
 st.set_page_config(page_title="Débitos", layout="wide")
 
@@ -87,6 +90,59 @@ def _df_from_debts(debts):
             }
         )
     return pd.DataFrame(rows)
+
+
+def _add_months(base: date, months: int) -> date:
+    month_index = (base.month - 1) + months
+    year = base.year + month_index // 12
+    month = (month_index % 12) + 1
+    day = min(base.day, calendar.monthrange(year, month)[1])
+    return date(year, month, day)
+
+
+def _sync_debt_installments(debt: Debt, total_amount: float, start_date: date, installments: int) -> None:
+    if not debt or debt.get_id() is None:
+        return
+    try:
+        count = max(1, int(installments or 1))
+        total = float(total_amount or 0.0)
+        if total <= 0:
+            return
+        base_date = start_date
+        if isinstance(base_date, pd.Timestamp):
+            base_date = base_date.date()
+
+        existing = DebtInstallmentRepository.list_by_debt(debt.get_id(), limit=2000)
+        for inst in existing:
+            try:
+                DebtInstallmentRepository.delete(inst.get_id())
+            except Exception:
+                continue
+
+        base_amount = round(total / count, 2)
+        amounts = [base_amount for _ in range(count)]
+        diff = round(total - base_amount * count, 2)
+        if amounts:
+            amounts[-1] = round(amounts[-1] + diff, 2)
+
+        timestamp_now = datetime.now(timezone.utc)
+        for idx, amt in enumerate(amounts):
+            due = _add_months(base_date, idx)
+            inst = DebtInstallment(
+                debt_id=debt.get_id(),
+                number=idx + 1,
+                amount=float(max(0.0, amt)),
+                due_on=due,
+                paid=bool(debt.get_paid()),
+            )
+            if inst.get_paid():
+                inst.set_paid_at(timestamp_now)
+            try:
+                DebtInstallmentRepository.create(inst)
+            except Exception as e:
+                st.warning(f"Falha ao criar parcela {idx + 1}: {e}")
+    except Exception as e:
+        st.warning(f"Não foi possível sincronizar parcelas: {e}")
 
 
 def render(user=None):
@@ -191,7 +247,7 @@ def render(user=None):
             )
             total_amount = st.number_input(
                 "Valor total (R$)",
-                min_value=0.00,
+                min_value=0.01,
                 step=0.01,
                 format="%.2f",
                 key="debt_form_total",
@@ -244,7 +300,13 @@ def render(user=None):
                     notes=(notes or "").strip() or None,
                     paid=bool(paid),
                 )
-                DebtRepository.create(model)
+                debt = DebtRepository.create(model)
+                _sync_debt_installments(
+                    debt,
+                    float(total_amount),
+                    debt_date,
+                    int(installments),
+                )
                 st.toast("Dívida cadastrada!", icon="✅")
                 st.session_state["reset_debt_form"] = True
                 _do_rerun()
@@ -450,7 +512,13 @@ def render(user=None):
                         debt.set_installments(int(row["parcelas"]))
                         debt.set_paid(bool(row["pago"]))
                         debt.set_notes((str(row["notas"]).strip() or None))
-                        DebtRepository.update(debt)
+                        debt = DebtRepository.update(debt)
+                        _sync_debt_installments(
+                            debt,
+                            float(row["valor_total"]),
+                            debt_date,
+                            int(row["parcelas"]),
+                        )
                         altered += 1
                     except Exception as e:
                         st.error(f"Erro ao atualizar id={row['id']}: {e}")
@@ -466,6 +534,80 @@ def render(user=None):
         ):
             st.session_state["confirm_delete_debts_ids"] = selected_ids
             _do_rerun()
+
+    st.divider()
+    st.subheader("Parcelas do débito")
+    debt_choices = [
+        (d.get_id(), d.get_description() or f"Dívida #{d.get_id()}")
+        for d in debts
+        if int(d.get_installments() or 1) > 1
+    ]
+    if debt_choices:
+        selected_debt_view = st.selectbox(
+            "Escolha um débito para visualizar as parcelas",
+            options=debt_choices,
+            format_func=lambda opt: opt[1],
+            key="installments_view_selector",
+        )[0]
+
+        installments_list = []
+        try:
+            installments_list = DebtInstallmentRepository.list_by_debt(selected_debt_view, limit=1000)
+        except Exception as e:
+            st.error(f"Erro ao carregar parcelas: {e}")
+
+        if installments_list:
+            inst_rows = []
+            for inst in installments_list:
+                inst_rows.append(
+                    {
+                        "id": inst.get_id(),
+                        "numero": inst.get_number(),
+                        "vencimento": inst.get_due_on(),
+                        "valor": float(inst.get_amount() or 0.0),
+                        "pago": bool(inst.get_paid()),
+                    }
+                )
+            df_inst = pd.DataFrame(inst_rows)
+            df_inst = df_inst.set_index("id", drop=True)[["numero", "vencimento", "valor", "pago"]]
+
+            edited_inst = st.data_editor(
+                df_inst,
+                hide_index=True,
+                num_rows="fixed",
+                key=f"installments_editor_{selected_debt_view}",
+                column_config={
+                    "numero": st.column_config.NumberColumn("Nº", disabled=True),
+                    "vencimento": st.column_config.DateColumn("Vencimento", disabled=True),
+                    "valor": st.column_config.NumberColumn("Valor", format="R$ %.2f", disabled=True),
+                    "pago": st.column_config.CheckboxColumn("Pago?"),
+                },
+            )
+
+            if st.button("Salvar parcelas", key=f"save_installments_{selected_debt_view}"):
+                base_inst = df_inst.reset_index()[["id", "pago"]]
+                curr_inst = edited_inst.reset_index()[["id", "pago"]]
+                updates = 0
+                for _, row in curr_inst.iterrows():
+                    orig = base_inst.loc[base_inst["id"] == row["id"]].iloc[0]
+                    if bool(orig["pago"]) != bool(row["pago"]):
+                        inst_obj = DebtInstallmentRepository.get_by_id(int(row["id"]))
+                        if not inst_obj:
+                            continue
+                        inst_obj.set_paid(bool(row["pago"]))
+                        inst_obj.set_paid_at(datetime.now(timezone.utc) if bool(row["pago"]) else None)
+                        try:
+                            DebtInstallmentRepository.update(inst_obj)
+                            updates += 1
+                        except Exception as e:
+                            st.error(f"Erro ao atualizar parcela {row['id']}: {e}")
+                if updates:
+                    st.toast(f"{updates} parcela(s) atualizada(s)", icon="✅")
+                    _do_rerun()
+        else:
+            st.info("Nenhuma parcela encontrada para este débito.")
+    else:
+        st.info("Somente dívidas parceladas aparecem aqui.")
 
     confirm_key = "confirm_delete_debts_ids"
     if st.session_state.get(confirm_key):
