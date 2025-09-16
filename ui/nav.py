@@ -2,6 +2,7 @@ from __future__ import annotations
 import base64
 import mimetypes
 import streamlit as st
+import os
 from core.session import logout
 
 
@@ -27,13 +28,21 @@ def render_sidebar(user) -> None:
     Expects to run only on authenticated pages.
     """
     default_src = _img_data_uri("utils/assets/imgs/profile.png")
+    user_img_path = None
+    try:
+        user_img_path = getattr(user, "get_profile_image", lambda: None)()  # type: ignore[attr-defined]
+    except Exception:
+        user_img_path = None
+    avatar_src = (
+        _img_data_uri(user_img_path) if user_img_path and os.path.exists(str(user_img_path)) else default_src
+    )
     st.sidebar.markdown(
         f"""
         <div style="display:flex;justify-content:center;margin-bottom:70px;margin-top:30px;">
           <div style="width:120px;height:120px;border-radius:50%;
                       box-shadow: 0 6px 15px rgba(0,0,0,0.08);
                       overflow:hidden; display:flex; align-items:center; justify-content:center;">
-            <img src="{default_src}" alt="avatar" style="width:100%;height:100%;object-fit:cover;" />
+            <img src="{avatar_src}" alt="avatar" style="width:100%;height:100%;object-fit:cover;" />
           </div>
         </div>
         """,
