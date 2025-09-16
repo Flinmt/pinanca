@@ -81,7 +81,7 @@ def render(user=None):
                 "sel": st.column_config.CheckboxColumn("Selecionar", width="small"),
                 "tipo": st.column_config.SelectboxColumn("Tipo", options=["Entrada", "Saída"], default="Entrada"),
                 "descricao": st.column_config.TextColumn("Descrição", required=False),
-                "valor": st.column_config.NumberColumn("Valor", min_value=0.01, step=0.01, format="%.2f"),
+                "valor": st.column_config.NumberColumn("Valor", min_value=0.01, step=0.01, format="R$ %.2f"),
                 "periodicidade": st.column_config.SelectboxColumn(
                     "Periodicidade", options=["monthly", "weekly", "yearly"], default="monthly"
                 ),
@@ -211,7 +211,7 @@ def render(user=None):
                 "sel": st.column_config.CheckboxColumn("Selecionar", width="small"),
                 "tipo": st.column_config.SelectboxColumn("Tipo", options=["Entrada", "Saída"], default="Entrada"),
                 "descricao": st.column_config.TextColumn("Descrição", required=False),
-                "valor": st.column_config.NumberColumn("Valor", min_value=0.01, step=0.01, format="%.2f"),
+                "valor": st.column_config.NumberColumn("Valor", min_value=0.01, step=0.01, format="R$ %.2f"),
                 "data": st.column_config.DateColumn("Data"),
             },
             num_rows="fixed",
@@ -330,15 +330,19 @@ def render(user=None):
     # Seletor de categoria removido
 
     with st.form("fixed_tx_form", border=True, clear_on_submit=True):
-        c1, c2 = st.columns([1, 2])
+        c1, c2 = st.columns([1, 1])
         with c1:
             tipo_label = st.selectbox("Tipo", options=["Entrada", "Saída"], index=0)
             periodicidade = st.selectbox("Periodicidade", options=["monthly", "weekly", "yearly"], index=0)
         with c2:
             descricao = st.text_input("Descrição", placeholder="Ex.: Salário, Aluguel")
-            valor = st.number_input("Valor", min_value=0.00, step=0.01, format="%.2f")
+            valor = st.number_input("Valor (R$)", min_value=0.00, step=0.01, format="%.2f")
 
-        if st.form_submit_button("Cadastrar", type="primary"):
+        b_l, b_c, b_r = st.columns([1, 2, 1])
+        with b_c:
+            submit_fixed = st.form_submit_button("Cadastrar", type="primary", use_container_width=True)
+
+        if submit_fixed:
             try:
                 # Sem categoria (seletor removido)
                 cat_id = None
@@ -366,14 +370,19 @@ def render(user=None):
     # ============================== Cadastro de avulsas ===============================
     st.subheader("Entradas/Saídas avulsas")
     with st.form("one_off_tx_form", border=True, clear_on_submit=True):
-        c1, c2 = st.columns([1, 2])
+        c1, c2 = st.columns([1, 1])
         with c1:
             tipo_label2 = st.selectbox("Tipo", options=["Entrada", "Saída"], index=0, key="oneoff_tipo")
             data_ocorr = st.date_input("Data", value=date.today(), key="oneoff_data")
         with c2:
             descricao2 = st.text_input("Descrição", placeholder="Ex.: Bônus, Compra pontual", key="oneoff_desc")
-            valor2 = st.number_input("Valor", min_value=0.00, step=0.01, format="%.2f", key="oneoff_val")
-        if st.form_submit_button("Cadastrar", type="primary"):
+            valor2 = st.number_input("Valor (R$)", min_value=0.00, step=0.01, format="%.2f", key="oneoff_val")
+
+        b2_l, b2_c, b2_r = st.columns([1, 2, 1])
+        with b2_c:
+            submit_oneoff = st.form_submit_button("Cadastrar", type="primary", use_container_width=True)
+
+        if submit_oneoff:
             try:
                 tipo2 = "income" if tipo_label2 == "Entrada" else "expense"
                 occ_dt = datetime.combine(data_ocorr, time(0, 0, 0, tzinfo=timezone.utc))
@@ -416,7 +425,7 @@ def render(user=None):
                 "sel": st.column_config.CheckboxColumn("Selecionar", width="small"),
                 "tipo": st.column_config.SelectboxColumn("Tipo", options=["Entrada", "Saída"], default="Entrada"),
                 "descricao": st.column_config.TextColumn("Descrição", required=False),
-                "valor": st.column_config.NumberColumn("Valor", min_value=0.01, step=0.01, format="%.2f"),
+                "valor": st.column_config.NumberColumn("Valor", min_value=0.01, step=0.01, format="R$ %.2f"),
                 "periodicidade": st.column_config.SelectboxColumn(
                     "Periodicidade", options=["monthly", "weekly", "yearly"], default="monthly"
                 ),
@@ -552,7 +561,7 @@ def render(user=None):
                 "sel": st.column_config.CheckboxColumn("Selecionar", width="small"),
                 "tipo": st.column_config.SelectboxColumn("Tipo", options=["Entrada", "Saída"], default="Entrada"),
                 "descricao": st.column_config.TextColumn("Descrição", required=False),
-                "valor": st.column_config.NumberColumn("Valor", min_value=0.01, step=0.01, format="%.2f"),
+                "valor": st.column_config.NumberColumn("Valor", min_value=0.01, step=0.01, format="R$ %.2f"),
                 "data": st.column_config.DateColumn("Data"),
             },
             num_rows="fixed",

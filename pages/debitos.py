@@ -156,8 +156,10 @@ def render(user=None):
     if st.session_state["debt_form_responsible"] not in responsible_options:
         st.session_state["debt_form_responsible"] = None
 
+    submit_clicked = False
+
     with st.container(border=True):
-        left_col, right_col = st.columns(2)
+        left_col, right_col = st.columns([1, 1])
         with left_col:
             debt_date = st.date_input(
                 "Data",
@@ -188,7 +190,7 @@ def render(user=None):
                 key="debt_form_description",
             )
             total_amount = st.number_input(
-                "Valor total",
+                "Valor total (R$)",
                 min_value=0.01,
                 step=0.01,
                 format="%.2f",
@@ -214,8 +216,6 @@ def render(user=None):
             key="debt_form_notes",
         )
 
-    submit_cols = st.columns([1, 2, 1])
-    with submit_cols[1]:
         submit_clicked = st.button(
             "Cadastrar",
             type="primary",
@@ -361,7 +361,7 @@ def render(user=None):
             ),
             "descricao": st.column_config.TextColumn("Descrição", required=False),
             "data": st.column_config.DateColumn("Data"),
-            "valor_total": st.column_config.NumberColumn("Valor total", min_value=0.01, format="%.2f"),
+            "valor_total": st.column_config.NumberColumn("Valor total", min_value=0.01, format="R$ %.2f"),
             "parcelas": st.column_config.NumberColumn("Parcelas", min_value=1, step=1),
             "ultima_parcela": st.column_config.DateColumn(
                 "Última parcela",
