@@ -191,7 +191,7 @@ def render(user=None):
             )
             total_amount = st.number_input(
                 "Valor total (R$)",
-                min_value=0.01,
+                min_value=0.00,
                 step=0.01,
                 format="%.2f",
                 key="debt_form_total",
@@ -205,7 +205,7 @@ def render(user=None):
                 key="debt_form_installments",
             )
         with align_right:
-            paid = st.checkbox(
+            paid = st.toggle(
                 "Pago?",
                 key="debt_form_paid",
             )
