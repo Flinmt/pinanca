@@ -119,19 +119,13 @@ def _sync_debt_installments(debt: Debt, total_amount: float, start_date: date, i
             except Exception:
                 continue
 
-        base_amount = round(total / count, 2)
-        amounts = [base_amount for _ in range(count)]
-        diff = round(total - base_amount * count, 2)
-        if amounts:
-            amounts[-1] = round(amounts[-1] + diff, 2)
-
         timestamp_now = datetime.now(timezone.utc)
-        for idx, amt in enumerate(amounts):
+        for idx in range(count):
             due = _add_months(base_date, idx)
             inst = DebtInstallment(
                 debt_id=debt.get_id(),
                 number=idx + 1,
-                amount=float(max(0.0, amt)),
+                amount=float(max(0.0, total)),
                 due_on=due,
                 paid=bool(debt.get_paid()),
             )
@@ -604,6 +598,9 @@ def render(user=None):
                 if updates:
                     st.toast(f"{updates} parcela(s) atualizada(s)", icon="✅")
                     _do_rerun()
+
+            total_valor = df_inst["valor"].sum()
+            st.markdown(f"**Total parcelado:** R$ {total_valor:,.2f}")
         else:
             st.info("Nenhuma parcela encontrada para este débito.")
     else:
