@@ -596,6 +596,14 @@ def render(user=None):
                         except Exception as e:
                             st.error(f"Erro ao atualizar parcela {row['id']}: {e}")
                 if updates:
+                    all_paid_flag = bool(edited_inst["pago"].all())
+                    debt_obj = next((d for d in debts if d.get_id() == selected_debt_view), None)
+                    if debt_obj and bool(debt_obj.get_paid()) != all_paid_flag:
+                        try:
+                            debt_obj.set_paid(all_paid_flag)
+                            DebtRepository.update(debt_obj)
+                        except Exception as e:
+                            st.error(f"Erro ao atualizar status do débito: {e}")
                     st.toast(f"{updates} parcela(s) atualizada(s)", icon="✅")
                     _do_rerun()
 
