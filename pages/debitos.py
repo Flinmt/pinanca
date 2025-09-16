@@ -534,12 +534,15 @@ def render(user=None):
     resp_filter_options = [(-1, "Todos"), (None, "Usuário (sem responsável)")] + [
         (resp.get_id(), resp.get_name() or f"Responsável {resp.get_id()}") for resp in responsibles
     ]
-    selected_resp_filter = st.selectbox(
-        "Filtrar por responsável",
-        options=resp_filter_options,
-        format_func=lambda opt: opt[1],
-        key="installments_resp_filter",
-    )[0]
+
+    filter_cols = st.columns(2)
+    with filter_cols[0]:
+        selected_resp_filter = st.selectbox(
+            "Filtrar por responsável",
+            options=resp_filter_options,
+            format_func=lambda opt: opt[1],
+            key="installments_resp_filter",
+        )[0]
 
     debt_choices = []
     for d in debts:
@@ -556,12 +559,13 @@ def render(user=None):
             debt_choices.append((d.get_id(), d.get_description() or f"Dívida #{d.get_id()}"))
 
     if debt_choices:
-        selected_debt_view = st.selectbox(
-            "Escolha um débito para visualizar as parcelas",
-            options=debt_choices,
-            format_func=lambda opt: opt[1],
-            key="installments_view_selector",
-        )[0]
+        with filter_cols[1]:
+            selected_debt_view = st.selectbox(
+                "Escolha o débito",
+                options=debt_choices,
+                format_func=lambda opt: opt[1],
+                key="installments_view_selector",
+            )[0]
 
         installments_list = []
         try:
