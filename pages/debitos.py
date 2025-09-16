@@ -18,6 +18,7 @@ from repository.debt_installments import DebtInstallmentRepository
 st.set_page_config(page_title="Débitos", layout="wide")
 
 NONE_OPTION = "__none__"
+RESP_FILTER_USER = "__resp_user__"
 
 
 def _do_rerun() -> None:
@@ -108,7 +109,7 @@ def _sync_debt_installments(debt: Debt, total_amount: float, start_date: date, i
         total = float(total_amount or 0.0)
         if total <= 0:
             return
-        base_date = start_date
+        base_date = start_date or date.today()
         if isinstance(base_date, pd.Timestamp):
             base_date = base_date.date()
 
@@ -319,7 +320,9 @@ def render(user=None):
         )
     origin_option_list = [(None, "Todas")] + [(o.get_id(), origin_map.get(str(o.get_id()), str(o.get_id()))) for o in origins]
     category_option_list = [(None, "Todas")] + [(c.get_id(), category_map.get(str(c.get_id()), str(c.get_id()))) for c in categories]
-    responsible_option_list = [(None, "Todos")] + [(r.get_id(), responsible_map.get(str(r.get_id()), str(r.get_id()))) for r in responsibles]
+    responsible_option_list = [(None, "Todos"), (NONE_OPTION, "Usuário (sem responsável)")] + [
+        (r.get_id(), responsible_map.get(str(r.get_id()), str(r.get_id()))) for r in responsibles
+    ]
 
     with filter_cols[1]:
         origin_filter = st.selectbox(
@@ -336,12 +339,20 @@ def render(user=None):
             key="debts_filter_category",
         )[0]
     with filter_cols[3]:
-        responsible_filter = st.selectbox(
+        responsible_filter_raw = st.selectbox(
             "Responsável",
             options=responsible_option_list,
             format_func=lambda opt: opt[1],
             key="debts_filter_responsible",
         )[0]
+
+    responsible_filter: Optional[int] | None
+    if responsible_filter_raw == NONE_OPTION:
+        responsible_filter = None
+    elif responsible_filter_raw is None:
+        responsible_filter = None
+    else:
+        responsible_filter = responsible_filter_raw
 
     paid_filter = None
     if status_choice == "Pendentes":
@@ -362,6 +373,7 @@ def render(user=None):
         st.error(f"Erro ao carregar dívidas: {e}")
         debts = []
 
+    user_label = "Usuário"
     for d in debts:
         o_id = d.get_origin_id()
         if o_id is not None:
@@ -378,6 +390,7 @@ def render(user=None):
         return
 
     df = _df_from_debts(debts)
+    df["responsavel"] = df["responsavel"].map(lambda x: NONE_OPTION if x == NONE_OPTION or x == "None" or x == "nan" else x)
     df = df.set_index("id", drop=True)[
         [
             "sel",
@@ -412,8 +425,8 @@ def render(user=None):
             ),
             "responsavel": st.column_config.SelectboxColumn(
                 "Responsável",
-                options=list(responsible_map.keys()),
-                format_func=lambda key: responsible_map.get(key, "Sem responsável"),
+                options=list(responsible_map.keys()) + [NONE_OPTION],
+                format_func=lambda key: user_label if key == NONE_OPTION else responsible_map.get(key, "Sem responsável"),
             ),
             "descricao": st.column_config.TextColumn("Descrição", required=False),
             "data": st.column_config.DateColumn("Data"),
