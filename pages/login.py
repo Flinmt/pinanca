@@ -7,8 +7,14 @@ def _do_rerun():
     if fn: fn()
 
 def render():
-    st.title("Entrar")
-    st.write("Informe suas credenciais para acessar.")
+    st.set_page_config(page_title="Entrar", layout="centered")
+
+    st.markdown("""
+    <div style="display:flex;flex-direction:column;align-items:center;">
+      <h1>Entrar</h1>
+      <p>Informe suas credenciais para acessar.</p>
+    </div>
+    """, unsafe_allow_html=True)
 
     if "cpf_input" not in st.session_state:
         st.session_state["cpf_input"] = ""
@@ -29,19 +35,19 @@ def render():
         if raw != masked:
             st.session_state["cpf_input"] = masked
 
-    st.text_input(
-        "CPF",
-        key="cpf_input",
-        help="Apenas dígitos (máx. 11)",
-        on_change=_handle_cpf_change,
-    )
+    with st.form("login_form", clear_on_submit=False, border=True):
+        st.text_input(
+            "CPF",
+            key="cpf_input",
+            help="Apenas dígitos (máx. 11)",
+            on_change=_handle_cpf_change,
+        )
 
-    password = st.text_input("Senha", type="password")
+        password = st.text_input("Senha", type="password")
 
-    st.markdown("<hr/>", unsafe_allow_html=True)
-    c1, c2, c3 = st.columns([1, 2, 1])
-    with c2:
-        submitted = st.button("Entrar", width='stretch')
+        submitted = st.form_submit_button("Entrar", type="primary")
+
+    submitted = submitted or False
 
     if submitted:
         try:
