@@ -22,23 +22,8 @@ def render():
         unsafe_allow_html=True,
     )
 
-    for key, default in (
-        ("cpf_input", ""),
-        ("cpf_digits", ""),
-        ("cpf_input_widget", ""),
-    ):
-        st.session_state.setdefault(key, default)
-
-    def _format_cpf_mask(d: str) -> str:
-        if len(d) <= 3:
-            return d
-        if len(d) <= 6:
-            return f"{d[:3]}.{d[3:]}"
-        if len(d) <= 9:
-            return f"{d[:3]}.{d[3:6]}.{d[6:]}"
-        return f"{d[:3]}.{d[3:6]}.{d[6:9]}-{d[9:11]}"
-
-    password_value = ""
+    st.session_state.setdefault("cpf_digits", "")
+    st.session_state.setdefault("login_password", "")
 
     left, center, right = st.columns([1, 2, 1])
     with center:
@@ -46,16 +31,13 @@ def render():
         with form:
             raw_cpf = st.text_input(
                 "CPF",
-                key="cpf_input_widget",
-                help="Apenas dígitos (máx. 11)",
+                help="Informe até 11 dígitos",
+                key="login_cpf",
             )
             digits = "".join(ch for ch in raw_cpf if ch.isdigit())[:11]
             st.session_state["cpf_digits"] = digits
-            masked = _format_cpf_mask(digits)
-            st.session_state["cpf_input"] = masked
-            st.session_state["cpf_input_widget"] = masked
 
-            password_value = st.text_input("Senha", type="password", key="login_password")
+            st.text_input("Senha", type="password", key="login_password")
 
     with center:
         submitted = form.form_submit_button(
@@ -65,7 +47,7 @@ def render():
     if submitted:
         try:
             cpf_value = st.session_state.get("cpf_digits", "")
-            password = st.session_state.get("login_password", password_value)
+            password = st.session_state.get("login_password", "")
             login_and_persist(cpf_value, password)
             st.success("Login realizado com sucesso!")
             if hasattr(st, "switch_page"):
