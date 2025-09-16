@@ -10,7 +10,9 @@ from ui.nav import render_sidebar
 from services.debt_origins import DebtOrigin
 from repository.debt_origins import DebtOriginRepository
 from services.responsibles import Responsible
+from services.categories import Category
 from repository.responsibles import ResponsibleRepository
+from repository.categories import CategoryRepository
 from repository.users import UserRepository
 
 
@@ -53,6 +55,14 @@ def _load_responsibles(user_id: int):
         return ResponsibleRepository.list_by_user(user_id)
     except Exception as e:
         st.warning(f"Erro ao carregar responsáveis: {e}")
+        return []
+
+
+def _load_categories(user_id: int):
+    try:
+        return CategoryRepository.list_by_user(user_id)
+    except Exception as e:
+        st.warning(f"Erro ao carregar categorias: {e}")
         return []
 
 
@@ -243,6 +253,124 @@ def render(user=None):
             if c2.button("Excluir", type="primary"):
                 _apply_deletes(ids, DebtOriginRepository.delete, "origem(ns)")
                 st.session_state["confirm_delete_origin_ids"] = []
+                _do_rerun()
+
+    st.divider()
+
+    # ======================================================================
+    # CATEGORIAS
+    # ======================================================================
+    st.subheader("Categorias")
+
+    with st.form("category_add_form", clear_on_submit=True, border=True):
+        new_cat_name = st.text_input("Nova categoria", placeholder="Ex.: Alimentação")
+        if st.form_submit_button("Adicionar categoria"):
+            if new_cat_name.strip():
+                try:
+                    CategoryRepository.create(
+                        Category(user_id=user.get_id(), name=new_cat_name.strip())
+                    )
+                    st.toast("Categoria adicionada!", icon="✅")
+                    _do_rerun()
+                except Exception as e:
+                    st.error(f"Erro ao adicionar categoria: {e}")
+            else:
+                st.info("Informe um nome.")
+
+    categories = _load_categories(user.get_id())
+    if categories:
+        df_c = _df_from_models(categories, lambda x: x.get_id(), lambda x: x.get_name() or "")
+        df_c["sel"] = False
+        df_c = df_c.set_index("id", drop=True)[["sel", "nome"]]
+        st.caption("Edite a coluna **Nome**. Marque **Selecionar** para excluir em lote.")
+
+        edited_c = st.data_editor(
+            df_c,
+            hide_index=True,
+            width='stretch',
+            column_config={
+                "nome": st.column_config.TextColumn(
+                    "Nome", required=True, help="Edite e clique em Salvar alterações"
+                ),
+                "sel": st.column_config.CheckboxColumn("Selecionar", width="small"),
+            },
+            num_rows="fixed",
+            key="categories_editor",
+        )
+
+        selected_ids_c = (
+            edited_c.index[edited_c["sel"] == True].astype(int).tolist()
+            if not edited_c.empty else []
+        )
+
+        if selected_ids_c:
+            name_map_c = {c.get_id(): (c.get_name() or "(sem nome)") for c in categories}
+            preview_c = ", ".join(name_map_c.get(cid, str(cid)) for cid in selected_ids_c)
+            st.caption(f"Selecionados ({len(selected_ids_c)}): {preview_c}")
+
+        sp_lc, centerc, sp_rc = st.columns([1, 4, 1])
+        with centerc:
+            ccol1, ccol2 = st.columns(2)
+        with ccol1:
+            if st.button("Salvar alterações", type="primary", key="save_cats_btn", width='stretch'):
+                def _update_cat(cid, new_name):
+                    c = next(x for x in categories if x.get_id() == cid)
+                    c.set_name(new_name)
+                    CategoryRepository.update(c)
+
+                base_c = df_c.reset_index()[["id", "nome"]]
+                edit_c = edited_c.reset_index()[["id", "nome"]]
+                alterados = _apply_updates(base_c, edit_c, _update_cat)
+                if alterados:
+                    st.toast("Alterações salvas.", icon="✅")
+                    _do_rerun()
+        with ccol2:
+            if st.button(
+                f"Excluir selecionados ({len(selected_ids_c)})",
+                disabled=len(selected_ids_c) == 0,
+                key="del_cats_btn",
+                width='stretch',
+            ):
+                st.session_state["confirm_delete_cat_ids"] = selected_ids_c
+                _do_rerun()
+    else:
+        st.info("Nenhuma categoria cadastrada.")
+
+    if st.session_state.get("confirm_delete_cat_ids"):
+        ids = list(st.session_state.get("confirm_delete_cat_ids", []))
+        dialog = getattr(st, "dialog", None)
+        if callable(dialog):
+            @dialog("Confirmar exclusão de categorias")
+            def _confirm_del_cats():
+                st.write("Confirma a exclusão das categorias selecionadas?")
+                cats_all = _load_categories(user.get_id())
+                if ids and cats_all:
+                    name_map = {c.get_id(): (c.get_name() or "(sem nome)") for c in cats_all}
+                    st.markdown("\n".join(f"- {name_map.get(i, str(i))}" for i in ids))
+                col1, col2 = st.columns(2)
+                with col1:
+                    if st.button("Cancelar", width='stretch'):
+                        st.session_state["confirm_delete_cat_ids"] = []
+                        _do_rerun()
+                with col2:
+                    if st.button("Excluir", type="primary", width='stretch'):
+                        _apply_deletes(ids, CategoryRepository.delete, "categoria(s)")
+                        st.session_state["confirm_delete_cat_ids"] = []
+                        _do_rerun()
+            _confirm_del_cats()
+        else:
+            st.warning("Confirma a exclusão das categorias selecionadas?")
+            cats_all = _load_categories(user.get_id())
+            if ids and cats_all:
+                name_map = {c.get_id(): (c.get_name() or "(sem nome)") for c in cats_all}
+                st.markdown("\n".join(f"- {name_map.get(i, str(i))}" for i in ids))
+            col1, col2 = st.columns(2)
+            if col1.button("Cancelar"):
+                st.session_state["confirm_delete_cat_ids"] = []
+                _do_rerun()
+            if col2.button("Excluir", type="primary"):
+                _apply_deletes(ids, CategoryRepository.delete, "categoria(s)")
+                st.session_state["confirm_delete_cat_ids"] = []
                 _do_rerun()
 
     st.divider()

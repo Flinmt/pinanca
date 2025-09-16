@@ -1,4 +1,5 @@
 from __future__ import annotations
+import calendar
 from typing import Optional
 from datetime import date
 
@@ -44,6 +45,18 @@ class Debt:
     def get_installments(self) -> int: return self._installments
     def get_notes(self) -> Optional[str]: return self._notes
     def get_paid(self) -> bool: return self._paid
+
+    def get_last_installment_date(self) -> Optional[date]:
+        start = self.get_debt_date()
+        installments = int(self.get_installments() or 0)
+        if not start or installments <= 0:
+            return None
+
+        month_index = (start.month - 1) + (installments - 1)
+        year = start.year + month_index // 12
+        month = (month_index % 12) + 1
+        day = min(start.day, calendar.monthrange(year, month)[1])
+        return date(year, month, day)
 
     # setters
     def set_user_id(self, v: int) -> None: self._user_id = v
@@ -91,4 +104,3 @@ class Debt:
 
 
 # Repository moved to `repository.debts.DebtRepository`
-

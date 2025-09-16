@@ -60,3 +60,13 @@ def test_debt_to_entity_and_from_entity_roundtrip():
     assert dto2.get_installments() == 1
     assert dto2.get_paid() is False
 
+
+def test_last_installment_same_day_when_possible():
+    d = Debt(debt_date=date(2025, 1, 10), installments=4)
+    assert d.get_last_installment_date() == date(2025, 4, 10)
+
+
+def test_last_installment_clamps_to_month_end():
+    d = Debt(debt_date=date(2024, 1, 31), installments=2)
+    # 2024 é bissexto, fevereiro termina em 29
+    assert d.get_last_installment_date() == date(2024, 2, 29)

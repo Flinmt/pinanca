@@ -12,6 +12,8 @@ from repository.debt_origins import DebtOriginRepository
 from repository.categories import CategoryRepository
 from repository.responsibles import ResponsibleRepository
 
+st.set_page_config(page_title="Débitos", layout="wide")
+
 NONE_OPTION = "__none__"
 
 
@@ -79,6 +81,7 @@ def _df_from_debts(debts):
                 "data": d.get_debt_date() or date.today(),
                 "valor_total": float(d.get_total_amount() or 0.0),
                 "parcelas": int(d.get_installments() or 1),
+                "ultima_parcela": d.get_last_installment_date(),
                 "pago": bool(d.get_paid()),
                 "notas": d.get_notes() or "",
             }
@@ -107,46 +110,80 @@ def render(user=None):
 
     st.subheader("Cadastrar débito")
 
-    origin_options = [(-1, "Selecione...")] + [
-        (o.get_id(), origin_map.get(str(o.get_id()), f"Origem {o.get_id()}")) for o in origins
-    ]
-    category_options = [(None, "Sem categoria")] + [
-        (c.get_id(), category_map.get(str(c.get_id()), f"Categoria {c.get_id()}")) for c in categories
-    ]
-    responsible_options = [(None, "Sem responsável")] + [
-        (r.get_id(), responsible_map.get(str(r.get_id()), f"Responsável {r.get_id()}")) for r in responsibles
-    ]
+    origin_options = [-1] + [o.get_id() for o in origins]
+    origin_labels = {
+        -1: "Selecione...",
+        **{o.get_id(): origin_map.get(str(o.get_id()), f"Origem {o.get_id()}") for o in origins},
+    }
+
+    category_options = [None] + [c.get_id() for c in categories]
+    category_labels = {
+        None: "Sem categoria",
+        **{c.get_id(): category_map.get(str(c.get_id()), f"Categoria {c.get_id()}") for c in categories},
+    }
+
+    responsible_options = [None] + [r.get_id() for r in responsibles]
+    responsible_labels = {
+        None: "Sem responsável",
+        **{r.get_id(): responsible_map.get(str(r.get_id()), f"Responsável {r.get_id()}") for r in responsibles},
+    }
+
+    if st.session_state.pop("reset_debt_form", False):
+        st.session_state["debt_form_date"] = date.today()
+        st.session_state["debt_form_origin"] = -1
+        st.session_state["debt_form_category"] = None
+        st.session_state["debt_form_responsible"] = None
+        st.session_state["debt_form_description"] = ""
+        st.session_state["debt_form_total"] = 0.01
+        st.session_state["debt_form_installments"] = 1
+        st.session_state["debt_form_paid"] = False
+        st.session_state["debt_form_notes"] = ""
+
+    st.session_state.setdefault("debt_form_date", date.today())
+    st.session_state.setdefault("debt_form_origin", -1)
+    st.session_state.setdefault("debt_form_category", None)
+    st.session_state.setdefault("debt_form_responsible", None)
+    st.session_state.setdefault("debt_form_description", "")
+    st.session_state.setdefault("debt_form_total", 0.01)
+    st.session_state.setdefault("debt_form_installments", 1)
+    st.session_state.setdefault("debt_form_paid", False)
+    st.session_state.setdefault("debt_form_notes", "")
+
+    if st.session_state["debt_form_origin"] not in origin_options:
+        st.session_state["debt_form_origin"] = -1
+    if st.session_state["debt_form_category"] not in category_options:
+        st.session_state["debt_form_category"] = None
+    if st.session_state["debt_form_responsible"] not in responsible_options:
+        st.session_state["debt_form_responsible"] = None
 
     with st.container(border=True):
         left_col, right_col = st.columns(2)
         with left_col:
             debt_date = st.date_input(
                 "Data",
-                value=st.session_state.get("debt_form_date", date.today()),
                 key="debt_form_date",
             )
             origin_choice = st.selectbox(
                 "Origem",
                 options=origin_options,
-                format_func=lambda opt: opt[1],
+                format_func=lambda opt: origin_labels.get(opt, str(opt)),
                 key="debt_form_origin",
             )
             category_choice = st.selectbox(
                 "Categoria",
                 options=category_options,
-                format_func=lambda opt: opt[1],
+                format_func=lambda opt: category_labels.get(opt, str(opt)),
                 key="debt_form_category",
             )
         with right_col:
             responsible_choice = st.selectbox(
                 "Responsável",
                 options=responsible_options,
-                format_func=lambda opt: opt[1],
+                format_func=lambda opt: responsible_labels.get(opt, str(opt)),
                 key="debt_form_responsible",
             )
             description = st.text_input(
                 "Descrição",
-                value=st.session_state.get("debt_form_description", ""),
                 placeholder="Ex.: Parcelamento cartão",
                 key="debt_form_description",
             )
@@ -155,28 +192,23 @@ def render(user=None):
                 min_value=0.01,
                 step=0.01,
                 format="%.2f",
-                value=st.session_state.get("debt_form_total", 0.01),
                 key="debt_form_total",
             )
-        align_left, align_right = st.columns(2)
+        align_left, align_right = st.columns(2, vertical_alignment="bottom")
         with align_left:
             installments = st.number_input(
                 "Parcelas",
                 min_value=1,
                 step=1,
-                value=st.session_state.get("debt_form_installments", 1),
                 key="debt_form_installments",
             )
         with align_right:
-            st.markdown("<div style='height:1.6rem'></div>", unsafe_allow_html=True)
             paid = st.checkbox(
                 "Pago?",
-                value=st.session_state.get("debt_form_paid", False),
                 key="debt_form_paid",
             )
         notes = st.text_area(
             "Observações",
-            value=st.session_state.get("debt_form_notes", ""),
             placeholder="Detalhes adicionais",
             height=120,
             key="debt_form_notes",
@@ -196,22 +228,15 @@ def render(user=None):
         st.info("Cadastre uma origem nas configurações antes de registrar uma dívida.")
 
     if submit_clicked:
-        selected_origin_id = origin_choice[0] if isinstance(origin_choice, tuple) else -1
-        if selected_origin_id == -1:
+        if origin_choice == -1:
             st.info("Selecione uma origem.")
         else:
             try:
-                selected_category_id = category_choice[0] if isinstance(category_choice, tuple) else None
-                selected_responsible_id = (
-                    responsible_choice[0] if isinstance(responsible_choice, tuple) else None
-                )
                 model = Debt(
                     user_id=user.get_id(),
-                    origin_id=selected_origin_id,
-                    category_id=(selected_category_id if selected_category_id is not None else None),
-                    responsible_id=(
-                        selected_responsible_id if selected_responsible_id is not None else None
-                    ),
+                    origin_id=origin_choice,
+                    category_id=category_choice if category_choice is not None else None,
+                    responsible_id=(responsible_choice if responsible_choice is not None else None),
                     debt_date=debt_date,
                     description=(description or "").strip() or None,
                     total_amount=float(total_amount),
@@ -221,15 +246,7 @@ def render(user=None):
                 )
                 DebtRepository.create(model)
                 st.toast("Dívida cadastrada!", icon="✅")
-                st.session_state.debt_form_origin = origin_options[0]
-                st.session_state.debt_form_category = category_options[0]
-                st.session_state.debt_form_responsible = responsible_options[0]
-                st.session_state.debt_form_description = ""
-                st.session_state.debt_form_total = 0.01
-                st.session_state.debt_form_installments = 1
-                st.session_state.debt_form_paid = False
-                st.session_state.debt_form_notes = ""
-                st.session_state.debt_form_date = date.today()
+                st.session_state["reset_debt_form"] = True
                 _do_rerun()
             except Exception as e:
                 st.error(f"Erro ao cadastrar: {e}")
@@ -315,6 +332,7 @@ def render(user=None):
             "data",
             "valor_total",
             "parcelas",
+            "ultima_parcela",
             "pago",
             "notas",
         ]
@@ -323,6 +341,7 @@ def render(user=None):
     edited = st.data_editor(
         df,
         hide_index=True,
+        height=360,
         width='stretch',
         column_config={
             "sel": st.column_config.CheckboxColumn("Selecionar", width="small"),
@@ -345,6 +364,11 @@ def render(user=None):
             "data": st.column_config.DateColumn("Data"),
             "valor_total": st.column_config.NumberColumn("Valor total", min_value=0.01, format="%.2f"),
             "parcelas": st.column_config.NumberColumn("Parcelas", min_value=1, step=1),
+            "ultima_parcela": st.column_config.DateColumn(
+                "Última parcela",
+                help="Calculada com base na data inicial e no número de parcelas",
+                disabled=True,
+            ),
             "pago": st.column_config.CheckboxColumn("Pago?"),
             "notas": st.column_config.TextColumn("Observações", required=False),
         },

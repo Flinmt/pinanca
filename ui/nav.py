@@ -39,8 +39,8 @@ def render_sidebar(user) -> None:
     st.sidebar.markdown(
         f"""
         <div style="display:flex;justify-content:center;margin-bottom:70px;margin-top:30px;">
-          <div style="width:120px;height:120px;border-radius:50%;
-                      box-shadow: 0 6px 15px rgba(0,0,0,0.08);
+          <div style="width:160px;height:160px;border-radius:50%;
+                      box-shadow: 0 20px 30px rgba(0,0,0,0.08);
                       overflow:hidden; display:flex; align-items:center; justify-content:center;">
             <img src="{avatar_src}" alt="avatar" style="width:100%;height:100%;object-fit:cover;" />
           </div>
