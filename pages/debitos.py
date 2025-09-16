@@ -341,7 +341,6 @@ def render(user=None):
     edited = st.data_editor(
         df,
         hide_index=True,
-        height=360,
         width='stretch',
         column_config={
             "sel": st.column_config.CheckboxColumn("Selecionar", width="small"),

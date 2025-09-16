@@ -330,15 +330,13 @@ def render(user=None):
     # Seletor de categoria removido
 
     with st.form("fixed_tx_form", border=True, clear_on_submit=True):
-        c1, c2, c3 = st.columns([1, 2, 1])
+        c1, c2 = st.columns([1, 2])
         with c1:
             tipo_label = st.selectbox("Tipo", options=["Entrada", "Saída"], index=0)
             periodicidade = st.selectbox("Periodicidade", options=["monthly", "weekly", "yearly"], index=0)
         with c2:
             descricao = st.text_input("Descrição", placeholder="Ex.: Salário, Aluguel")
             valor = st.number_input("Valor", min_value=0.00, step=0.01, format="%.2f")
-        with c3:
-            proxima = st.date_input("Próxima execução", value=date.today())
 
         if st.form_submit_button("Cadastrar", type="primary"):
             try:
@@ -353,7 +351,6 @@ def render(user=None):
                     type=tipo,
                     fixed=True,
                     periodicity=periodicidade,
-                    next_execution=proxima,
                     description=(descricao or "").strip() or None,
                 )
                 TransactionRepository.create(model)
@@ -369,15 +366,13 @@ def render(user=None):
     # ============================== Cadastro de avulsas ===============================
     st.subheader("Entradas/Saídas avulsas")
     with st.form("one_off_tx_form", border=True, clear_on_submit=True):
-        c1, c2, c3 = st.columns([1, 2, 1])
+        c1, c2 = st.columns([1, 2])
         with c1:
             tipo_label2 = st.selectbox("Tipo", options=["Entrada", "Saída"], index=0, key="oneoff_tipo")
             data_ocorr = st.date_input("Data", value=date.today(), key="oneoff_data")
         with c2:
             descricao2 = st.text_input("Descrição", placeholder="Ex.: Bônus, Compra pontual", key="oneoff_desc")
             valor2 = st.number_input("Valor", min_value=0.00, step=0.01, format="%.2f", key="oneoff_val")
-        with c3:
-            st.caption("")
         if st.form_submit_button("Cadastrar", type="primary"):
             try:
                 tipo2 = "income" if tipo_label2 == "Entrada" else "expense"
